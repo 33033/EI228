@@ -3,6 +3,75 @@
 #include<ctype.h>
 #include <iostream>
 
+template<class T> class Image
+{
+private:
+	IplImage* imgp;
+public:
+	Image(IplImage* img = 0) { imgp = img; }
+	~Image() { imgp = 0; }
+	void operator=(IplImage* img) { imgp = img; }
+	inline T* operator[](const int rowIndx) {
+		return ((T *)(imgp->imageData + rowIndx*imgp->widthStep));
+	}
+};
+
+void cvThin(IplImage *src, IplImage *dst, int iterations = 1)
+{
+	cvCopy(src, dst);
+	Image<unsigned char> dstdat(dst);
+	IplImage *t_image = cvCloneImage(src);
+	Image<unsigned char> t_dat(t_image);
+	for (int n = 0; n < iterations; ++n)
+		for (int s = 0; s <= 1; ++s)
+		{
+			cvCopy(dst, t_image);
+			for (int i = 0; i < src->height; ++i)
+				for (int j = 0; j < src->width; ++j)
+					if (t_dat[i][j])
+					{
+						int a = 0, b = 0;
+						int d[8][2] = { { -1, 0 },{ -1,1 },{ 0,1 } ,{ 1,1 },{ 1,0 },{ 1,-1 },{ 0,-1 },{ -1,-1 } };
+						int p[8];
+						p[0] = (i == 0) ? 0 : t_dat[i - 1][j];
+						for (int k = 1; k <= 8; ++k)
+						{
+							if (i + d[k % 8][0] < 0 || i + d[k % 8][0] >= src->height ||
+								j + d[k % 8][1] < 0 || j + d[k % 8][1] >= src->width)
+								p[k % 8] = 0;
+							else
+								p[k % 8] = t_dat[i + d[k % 8][0]][j + d[k % 8][1]];
+							if (p[k % 8])
+							{
+								++b;
+								if (!p[k - 1])
+									++a;
+							}
+						}
+						if (b >= 2 && b <= 6 && a == 1)
+							if (!s && !(p[2] && p[4] && (p[0] || p[6])))
+								dstdat[i][j] = 0;
+							else if (s && !(p[0] && p[6] && (p[2] || p[4])))
+								dstdat[i][j] = 0;
+					}
+		}
+	cvReleaseImage(&t_image);
+}
+IplImage* Thin(IplImage *input)
+{
+	IplImage *dst, *src;
+	const int MAX_THINNING_TIMES = 18;
+
+	src = cvCreateImage(cvSize(input->width, input->height), IPL_DEPTH_8U, 1);
+
+	cvErode(input, src);
+
+	dst = cvCreateImage(cvSize(src->width, src->height), IPL_DEPTH_8U, 1);
+	cvThin(src, dst, MAX_THINNING_TIMES);
+
+	return dst;
+}
+
 int main()
 {
 
@@ -59,6 +128,7 @@ int main()
 	cvShowImage("image", img);
 	cvShowImage("hsv", hsv);
 	int _hmax = 0, _hmin = 0, _vmin = 0, _vmax = 0, _smin = 0, _smax = 0, flag = 0;
+	int i = 0;
 	while (flag != 'q')
 	{
 		_hmax = hmax, _hmin = hmin, _vmin = vmin, _vmax = vmax, _smin = smin, _smax = smax;
@@ -69,6 +139,8 @@ int main()
 		//ÏÔÊ¾Í¼Ïñ
 		cvShowImage("mask", mask);
 		flag = cvWaitKey(40);
+		i++;
+		if (i > 75) break;
 	}
 	//*********************************************************
 
@@ -78,6 +150,10 @@ int main()
 	*
 	*
 	*/
+	IplImage *thinimg;
+	cvThin(mask, thinimg, 1);
+	cvNamedWindow("thinimg", CV_WINDOW_AUTOSIZE);
+	cvShowImage("thinimg", thinimg);
 
 	//*********************************************************
 
