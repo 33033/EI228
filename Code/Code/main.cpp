@@ -27,11 +27,6 @@ int main()
 	newpoints[3] = cvPoint2D32f(380, 380);
 	cvGetPerspectiveTransform(originpoints, newpoints, transmat); //根据四个点计算变换矩阵
 	cvWarpPerspective(img, transimg, transmat); //根据变换矩阵计算图像的变换
-	cvNamedWindow("win1");
-	cvShowImage("win1", img); //显示原始图像
-	cvNamedWindow("win2");
-	cvShowImage("win2", transimg); //显示变换后的图像
-	cvWaitKey();
 	//************************************************************
 
 
@@ -40,7 +35,41 @@ int main()
 	*
 	*
 	*/
+	int hmax = 0, hmin = 0, vmin = 0, vmax = 0, smin = 0, smax = 0;
+	IplImage *hsv, *mask;
+	//创建窗口
+	cvNamedWindow("image", CV_WINDOW_AUTOSIZE);
+	cvNamedWindow("hsv", CV_WINDOW_AUTOSIZE);
+	cvNamedWindow("mask", CV_WINDOW_AUTOSIZE);
+	cvNamedWindow("Track", CV_WINDOW_AUTOSIZE);
 
+	cvCreateTrackbar("Hmin", "Track", &hmin, 256, 0);
+	cvCreateTrackbar("Hmax", "Track", &hmax, 256, 0);
+	cvCreateTrackbar("Smin", "Track", &smin, 256, 0);
+	cvCreateTrackbar("Smax", "Track", &smax, 256, 0);
+	cvCreateTrackbar("Vmin", "Track", &vmin, 256, 0);
+	cvCreateTrackbar("Vmax", "Track", &vmax, 256, 0);
+
+
+	//分配图像空间
+	hsv = cvCreateImage(cvGetSize(img), 8, 3);
+	mask = cvCreateImage(cvGetSize(img), 8, 1);
+	//将RGB转化为HSV色系
+	cvCvtColor(img, hsv, CV_RGB2BGR);
+	cvShowImage("image", img);
+	cvShowImage("hsv", hsv);
+	int _hmax = 0, _hmin = 0, _vmin = 0, _vmax = 0, _smin = 0, _smax = 0, flag = 0;
+	while (flag != 'q')
+	{
+		_hmax = hmax, _hmin = hmin, _vmin = vmin, _vmax = vmax, _smin = smin, _smax = smax;
+		//制作掩膜板
+		cvInRangeS(hsv, cvScalar(MIN(_hmax, _hmin), MIN(_smax, _smin), MIN(_vmax, _vmin), 0),
+			cvScalar(MAX(_hmax, _hmin), MAX(_smax, _smin), MAX(_vmax, _vmin), 0), mask);
+
+		//显示图像
+		cvShowImage("mask", mask);
+		flag = cvWaitKey(40);
+	}
 	//*********************************************************
 
 
@@ -60,5 +89,10 @@ int main()
 	*/
 
 	//*********************************************************
+	cvDestroyAllWindows();
+	cvReleaseImage(&img);
+	cvReleaseImage(&hsv);
+	cvReleaseImage(&mask);
+	system("pause");
 	return 0;
 }
